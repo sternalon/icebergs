@@ -1490,23 +1490,29 @@ subroutine evolve_icebergs(bergs)
 type(icebergs), pointer :: bergs
 ! Local variables
 type(icebergs_gridded), pointer :: grd
-real :: uvel1, vvel1, lon1, lat1, u1, v1, dxdl1, ax1, ay1
-real :: uvel2, vvel2, lon2, lat2, u2, v2, dxdl2, ax2, ay2
-real :: uvel3, vvel3, lon3, lat3, u3, v3, dxdl3, ax3, ay3
-real :: uvel4, vvel4, lon4, lat4, u4, v4, dxdl4, ax4, ay4
-real :: uveln, vveln, lonn, latn
-real :: x1, xdot1, xddot1, y1, ydot1, yddot1
-real :: x2, xdot2, xddot2, y2, ydot2, yddot2
-real :: x3, xdot3, xddot3, y3, ydot3, yddot3
-real :: x4, xdot4, xddot4, y4, ydot4, yddot4
-real :: xn, xdotn, yn, ydotn
+real :: uvel1, vvel1, lon1, lat1, u1, v1, dxdl1, ax1, ay1, axn1, ayn1 
+real :: uvel2, vvel2, lon2, lat2, u2, v2, dxdl2, ax2, ay2, axn2, ayn2
+real :: uvel3, vvel3, lon3, lat3, u3, v3, dxdl3, ax3, ay3, axn3, ayn3
+real :: uvel4, vvel4, lon4, lat4, u4, v4, dxdl4, ax4, ay4, axn4, ayn4
+real :: uveln, vveln, lonn, latn, un, vn, dxdln
+real :: x1, xdot1, xddot1, y1, ydot1, yddot1, xddot1n, yddot1n 
+real :: x2, xdot2, xddot2, y2, ydot2, yddot2, xddot2n, yddot2n
+real :: x3, xdot3, xddot3, y3, ydot3, yddot3, xddot3n, yddot3n
+real :: x4, xdot4, xddot4, y4, ydot4, yddot4, xddot4n, yddot4n
+real :: xn, xdotn, yn, ydotn, xddotn, yddotn
+real :: bxddot, byddot                                               ! Added by Alon
+real :: axn, ayn, bxn, byn                                           ! Added by Alon - explicit and implicit accelations from the previous step
 real :: r180_pi, dt, dt_2, dt_6, dydl, Rearth
 integer :: i, j
 integer :: i1,j1,i2,j2,i3,j3,i4,j4
 real :: xi, yj
 logical :: bounced, on_tangential_plane, error_flag
+logical :: Runge_not_Verlet  ! Runge_not_Verlet=1 for Runge Kutta, =0 for Verlet method. Added by Alon
 type(iceberg), pointer :: berg
 integer :: stderrunit
+
+
+
 
   ! 4th order Runge-Kutta to solve:
   !    d/dt X = V,  d/dt V = A
@@ -1533,6 +1539,11 @@ integer :: stderrunit
   dt_2=0.5*dt
   dt_6=dt/6.
   Rearth=6360.e3
+
+  !Choosing time stepping scheme - Alon
+  !Runge_not_Verlet=.False.    !Loading manually: true=Runge Kutta, False=Verlet   , Alon
+  Runge_not_Verlet=bergs%Runge_not_Verlet  ! Loading directly from namelist/default , Alon
+
 
   berg=>bergs%first
   do while (associated(berg)) ! loop over all bergs
@@ -1565,6 +1576,15 @@ integer :: stderrunit
   i1=i;j1=j
   if (bergs%add_weight_to_ocean .and. bergs%time_average_weight) &
     call spread_mass_across_ocean_cells(grd, i, j, xi, yj, berg%mass, berg%mass_of_bits, 0.25*berg%mass_scaling)
+
+
+ if (Runge_not_Verlet) then !Start of the Runge-Kutta Loop -Added by Alon, MP2
+
+ !Loading past acceleartions - Alon
+  axn=berg%axn; ayn=berg%ayn !Alon
+  axn1=axn; axn2=axn; axn3=axn; axn4=axn
+  ayn1=ayn; ayn2=ayn; ayn3=ayn; ayn4=ayn
+
 
   ! A1 = A(X1)
   lon1=berg%lon; lat1=berg%lat
@@ -1818,6 +1838,11 @@ integer :: stderrunit
       write(stderrunit,'(2i4,32f7.1)') mpp_pe(),j,(grd%lat(i,j),i=grd%isd,grd%ied)
     enddo
   endif
+
+
+ endif ! End of the Runge-Kutta Loop -added by Alon  
+
+
 
   berg%lon=lonn
   berg%lat=latn
