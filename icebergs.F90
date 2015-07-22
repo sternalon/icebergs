@@ -113,6 +113,294 @@ integer :: stdlogunit, stderrunit
 end subroutine icebergs_init
 
 subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, ax, ay, axn, ayn, bxn, byn, Runge_not_Verlet, debug_flag) !Saving  acceleration for Verlet, Adding Verlet flag - Alon
+
+! Arguments
+type(icebergs), pointer :: bergs
+type(iceberg), pointer :: berg
+integer, intent(in) :: i, j
+real, intent(in) :: xi, yj, lat, uvel, vvel, uvel0, vvel0, dt
+real, intent(inout) :: ax, ay
+real, intent(inout) :: axn, ayn, bxn, byn ! Added implicit and explicit accelerations to output -Alon
+logical, optional :: debug_flag
+! Local variables
+type(icebergs_gridded), pointer :: grd
+real :: uo, vo, ui, vi, ua, va, uwave, vwave, ssh_x, ssh_y, sst, cn, hi
+real :: f_cori, T, D, W, L, M, F
+real :: drag_ocn, drag_atm, drag_ice, wave_rad
+real :: c_ocn, c_atm, c_ice
+real :: ampl, wmod, Cr, Lwavelength, Lcutoff, Ltop
+real, parameter :: alpha=0.0, beta=1.0, accel_lim=1.e-2, Cr0=0.06, vel_lim=15.
+real :: lambda, detA, A11, A12, axe, aye, D_hi
+logical, intent(in) :: Runge_not_Verlet ! Flag to specify whether it is Runge-Kutta or Verlet
+real :: uveln, vveln, us, vs, speed, loc_dx, new_speed
+logical :: dumpit
+integer :: itloop
+integer :: stderrunit
+
+axn=0.
+ayn=0.
+bxn=0.
+byn=0.
+
+  ! Get the stderr unit number.
+  stderrunit = stderr()
+
+  ! For convenience
+  grd=>bergs%grd
+
+  ! Interpolate gridded fields to berg 
+  call interp_flds(grd, i, j, xi, yj, uo, vo, ui, vi, ua, va, ssh_x, ssh_y, sst, cn, hi)
+
+  f_cori=(2.*omega)*sin(pi_180*lat)
+
+  M=berg%mass
+  T=berg%thickness ! total thickness
+  D=(bergs%rho_bergs/rho_seawater)*T ! draught (keel depth)
+  F=T-D ! freeboard
+  W=berg%width
+  L=berg%length
+
+  hi=min(hi,D)
+  D_hi=max(0.,D-hi)
+
+  ! Wave radiation
+  uwave=ua-uo; vwave=va-vo  ! Use wind speed rel. to ocean for wave model (aja)?
+  wmod=uwave*uwave+vwave*vwave ! The wave amplitude and length depend on the wind speed relative to the ocean current;
+                               !  actually wmod is wmod**2 here.
+  ampl=0.5*0.02025*wmod ! This is "a", the wave amplitude
+  Lwavelength=0.32*wmod ! Surface wave length fitted to data in table at
+  !      http://www4.ncsu.edu/eos/users/c/ceknowle/public/chapter10/part2.html
+  Lcutoff=0.125*Lwavelength
+  Ltop=0.25*Lwavelength
+  Cr=Cr0*min(max(0.,(L-Lcutoff)/((Ltop-Lcutoff)+1.e-30)),1.) ! Wave radiation coefficient
+  !     fitted to graph from Carrieres et al.,  POAC Drift Model.
+  wave_rad=0.5*rho_seawater/M*Cr*gravity*ampl*min(ampl,F)*(2.*W*L)/(W+L)
+  wmod = sqrt(ua*ua+va*va) ! Wind speed
+  if (wmod.ne.0.) then
+    uwave=ua/wmod ! Wave radiation force acts in wind direction ...
+    vwave=va/wmod
+  else
+    uwave=0.; vwave=0.; wave_rad=0. ! ... and only when wind is present.
+  endif
+
+  ! Weighted drag coefficients
+  c_ocn=rho_seawater/M*(0.5*Cd_wv*W*(D_hi)+Cd_wh*W*L)
+  c_atm=rho_air     /M*(0.5*Cd_av*W*F     +Cd_ah*W*L)
+  c_ice=rho_ice     /M*(0.5*Cd_iv*W*hi              )
+  if (abs(ui)+abs(vi).eq.0.) c_ice=0.
+
+  uveln=uvel; vveln=vvel ! Copy starting uvel, vvel
+  do itloop=1,2 ! Iterate on drag coefficients
+
+    us=0.5*(uveln+uvel); vs=0.5*(vveln+vvel)
+    drag_ocn=c_ocn*sqrt( (us-uo)**2+(vs-vo)**2 )
+    drag_atm=c_atm*sqrt( (us-ua)**2+(vs-va)**2 )
+    drag_ice=c_ice*sqrt( (us-ui)**2+(vs-vi)**2 )
+
+    ! Explicit accelerations
+   !axe= f_cori*vvel -gravity*ssh_x +wave_rad*uwave &
+   !    -drag_ocn*(uvel-uo) -drag_atm*(uvel-ua) -drag_ice*(uvel-ui)
+   !aye=-f_cori*uvel -gravity*ssh_y +wave_rad*vwave &
+   !    -drag_ocn*(vvel-vo) -drag_atm*(vvel-va) -drag_ice*(vvel-vi)
+    axe=-gravity*ssh_x +wave_rad*uwave
+    aye=-gravity*ssh_y +wave_rad*vwave
+    if (alpha>0.) then ! If implicit, use time-level (n) rather than RK4 latest
+      axe=axe+f_cori*vvel0
+      aye=aye-f_cori*uvel0
+    else
+      axe=axe+f_cori*vvel
+      aye=aye-f_cori*uvel
+    endif
+    if (beta>0.) then ! If implicit, use time-level (n) rather than RK4 latest
+      axe=axe-drag_ocn*(uvel0-uo) -drag_atm*(uvel0-ua) -drag_ice*(uvel0-ui)
+      aye=aye-drag_ocn*(vvel0-vo) -drag_atm*(vvel0-va) -drag_ice*(vvel0-vi)
+    else
+      axe=axe-drag_ocn*(uvel-uo) -drag_atm*(uvel-ua) -drag_ice*(uvel-ui)
+      aye=aye-drag_ocn*(vvel-vo) -drag_atm*(vvel-va) -drag_ice*(vvel-vi)
+    endif
+
+    ! Solve for implicit accelerations
+    if (alpha+beta.gt.0.) then
+      lambda=drag_ocn+drag_atm+drag_ice
+      A11=1.+beta*dt*lambda
+      A12=alpha*dt*f_cori
+      detA=1./(A11**2+A12**2)
+      ax=detA*(A11*axe+A12*aye)
+      ay=detA*(A11*aye-A12*axe)
+    else
+      ax=axe; ay=aye
+    endif
+
+    uveln=uvel0+dt*ax
+    vveln=vvel0+dt*ay
+
+  enddo ! itloop
+  
+  ! Limit speed of bergs based on a CFL criteria
+  if (bergs%speed_limit>0.) then
+    speed=sqrt(uveln*uveln+vveln*vveln) ! Speed of berg
+    if (speed>0.) then
+      loc_dx=min(0.5*(grd%dx(i,j)+grd%dx(i,j-1)),0.5*(grd%dy(i,j)+grd%dy(i-1,j))) ! min(dx,dy)
+     !new_speed=min(loc_dx/dt*bergs%speed_limit,speed) ! Restrict speed to dx/dt x factor
+      new_speed=loc_dx/dt*bergs%speed_limit ! Speed limit as a factor of dx / dt 
+      if (new_speed<speed) then
+        uveln=uveln*(new_speed/speed) ! Scale velocity to reduce speed
+        vveln=vveln*(new_speed/speed) ! without changing the direction
+        bergs%nspeeding_tickets=bergs%nspeeding_tickets+1
+      endif
+    endif
+  endif
+
+  dumpit=.false.
+  if (abs(uveln)>vel_lim.or.abs(vveln)>vel_lim) then
+    dumpit=.true.
+    write(stderrunit,'("pe=",i3,x,a)') mpp_pe(),'Dump triggered by excessive velocity'
+  endif
+  if (abs(ax)>accel_lim.or.abs(ay)>accel_lim) then
+    dumpit=.true.
+    write(stderrunit,'("pe=",i3,x,a)') mpp_pe(),'Dump triggered by excessive acceleration'
+  endif
+  if (present(debug_flag)) then
+    if (debug_flag) dumpit=.true.
+    write(stderrunit,'("pe=",i3,x,a)') mpp_pe(),'Debug dump flagged by arguments'
+  endif
+  if (dumpit) then
+ 100 format('pe=',i3,a15,9(x,a8,es12.3))
+ 200 format('pe=',i3,a15,(x,a8,i12),9(x,a8,es12.3))
+    write(stderrunit,200) mpp_pe(),'Starting pars:', &
+      'yr0=',berg%start_year, 'day0=',berg%start_day, &
+      'lon0=',berg%start_lon, 'lat0=',berg%start_lat, 'mass0=',berg%start_mass, &
+      'sclng=',berg%mass_scaling
+    write(stderrunit,100) mpp_pe(),'Geometry:', &
+      'M=',M, 'T=',T, 'D=',D, 'F=',F, 'W=',W, 'L=',L
+    write(stderrunit,100) mpp_pe(),'delta U:', &
+      'u(n)=',uvel0, 'u(*)=', uvel, 'u(n+1)=',uvel+dt*ax, 'del u=',dt*ax
+    write(stderrunit,100) mpp_pe(),'U terms', &
+      'f*v=',f_cori*vvel, &
+      'g*H_x=',-gravity*ssh_x, &
+      'wave*ua=',wave_rad*uwave, &
+      'd*(u-uo)=',-drag_ocn*(uvel-uo), &
+      'd*(u-ua)=',-drag_atm*(uvel-ua), &
+      'd*(u-ui)=',-drag_ice*(uvel-ui)
+    write(stderrunit,100) mpp_pe(),'U accel.', &
+      'axe=',axe, &
+      'ax=',ax, &
+      'ax(cori)=',detA*(A11*(f_cori*vvel)+A12*(-f_cori*uvel)), &
+      'ax(grav)=',detA*(A11*(-gravity*ssh_x)+A12*(-gravity*ssh_y)), &
+      'ax(wave)=',detA*(A11*(wave_rad*uwave)+A12*(wave_rad*vwave)), &
+      'ax(ocn)=',detA*(A11*(-drag_ocn*(uvel-uo))+A12*(-drag_ocn*(vvel-vo))), &
+      'ax(atm)=',detA*(A11*(-drag_atm*(uvel-ua))+A12*(-drag_atm*(vvel-va))), &
+      'ax(ice)=',detA*(A11*(-drag_ice*(uvel-ui))+A12*(-drag_ice*(vvel-vi)))
+    write(stderrunit,100) mpp_pe(),'delta V:', &
+      'v(n)=',vvel0, 'v(*)=', vvel, 'v(n+1)=',vvel+dt*ay, 'del v=',dt*ay
+    write(stderrunit,100) mpp_pe(),'V terms', &
+      'f*u=',-f_cori*uvel, &
+      'g*H_y=',-gravity*ssh_y, &
+      'wave*va=',wave_rad*vwave, &
+      'd*(v-vo)=',-drag_ocn*(vvel-vo), &
+      'd*(v-va)=',-drag_atm*(vvel-va), &
+      'd*(v-vi)=',-drag_ice*(vvel-vi)
+    write(stderrunit,100) mpp_pe(),'V accel. pe=', &
+      'aye=',aye, &
+      'ay=',ay, &
+      'ay(cori)=',detA*(-A12*(f_cori*vvel)+A11*(-f_cori*uvel)), &
+      'ay(grav)=',detA*(-A12*(-gravity*ssh_x)+A11*(-gravity*ssh_y)), &
+      'ay(wave)=',detA*(-A12*(wave_rad*uwave)+A11*(wave_rad*vwave)), &
+      'ay(ocn)=',detA*(-A12*(-drag_ocn*(uvel-uo))+A11*(-drag_ocn*(vvel-vo))), &
+      'ay(atm)=',detA*(-A12*(-drag_atm*(uvel-ua))+A11*(-drag_atm*(vvel-va))), &
+      'ay(ice)=',detA*(-A12*(-drag_ice*(uvel-ui))+A11*(-drag_ice*(vvel-vi)))
+    write(stderrunit,100) mpp_pe(),'Vel scales', &
+      '|va-vo|=',sqrt((ua-uo)**2+(va-vo)**2), &
+      '|vo-vb|=',sqrt((uvel-uo)**2+(vvel-vo)**2), &
+      '|va-vb|=',sqrt((uvel-ua)**2+(vvel-va)**2), &
+      '|vi-vb|=',sqrt((uvel-ui)**2+(vvel-vi)**2), &
+      '|vb|=',sqrt((uvel)**2+(vvel)**2), &
+      '|va|=',sqrt((ua)**2+(va)**2), &
+      '|vo|=',sqrt((uo)**2+(vo)**2), &
+      '|vi|=',sqrt((ui)**2+(vi)**2)
+    write(stderrunit,100) mpp_pe(),'Time scales', &
+      'f=',f_cori, 'wave_rad=',wave_rad, 'do=',drag_ocn, 'da=',drag_atm, 'di=',drag_ice
+    write(stderrunit,100) mpp_pe(),'u*', &
+      'd*=',lambda, &
+      'u*=',(drag_ocn*uo+drag_atm*ua+drag_ice*ui)/lambda, &
+      'uo*=',(drag_ocn*uo)/lambda, &
+      'ua*=',(drag_atm*ua)/lambda, &
+      'ui*=',(drag_ice*ui)/lambda
+    write(stderrunit,100) mpp_pe(),'v*', &
+      'd*=',lambda, &
+      'v*=',(drag_ocn*vo+drag_atm*va+drag_ice*vi)/lambda, &
+      'vo*=',(drag_ocn*vo)/lambda, &
+      'va*=',(drag_atm*va)/lambda, &
+      'vi*=',(drag_ice*vi)/lambda
+    write(stderrunit,100) mpp_pe(),'params', &
+      'a=',ampl, 'Lwl=',Lwavelength, 'Lcut=',Lcutoff, 'Ltop=',Ltop, 'hi=',hi, 'Cr=',Cr
+    write(stderrunit,100) mpp_pe(),'Position', &
+      'xi=',xi, 'yj=',yj, 'lat=',lat
+    call dump_locfld(grd,i,j,grd%msk,'MSK')
+    call dump_locfld(grd,i,j,grd%ssh,'SSH')
+    call dump_locfld(grd,i,j,grd%sst,'SST')
+    call dump_locvel(grd,i,j,grd%uo,'Uo')
+    call dump_locvel(grd,i,j,grd%vo,'Vo')
+    call dump_locvel(grd,i,j,grd%ua,'Ua')
+    call dump_locvel(grd,i,j,grd%va,'Va')
+    call dump_locvel(grd,i,j,grd%ui,'Ui')
+    call dump_locvel(grd,i,j,grd%vi,'Vi')
+    call dump_locfld(grd,i,j,grd%hi,'HI')
+    call dump_locfld(grd,i,j,grd%cn,'CN')
+    call dump_locvel(grd,i,j,grd%lon,'Lon')
+    call dump_locvel(grd,i,j,grd%lat,'Lat')
+    call print_berg(stderrunit,berg,'diamonds, accel, large accel')
+  endif
+
+  contains
+
+  subroutine dump_locfld(grd,i0,j0,A,lbl)
+  ! Arguments
+  type(icebergs_gridded), pointer :: grd
+  integer, intent(in) :: i0, j0
+  real, dimension(grd%isd:grd%ied,grd%jsd:grd%jed), intent(in) :: A
+  character(len=*) :: lbl
+! Local variables
+  integer :: i, j, ii, jj
+  real :: B(-1:1,-1:1), fac
+
+  do jj=-1,1
+    j=max(grd%jsd,min(grd%jed,jj+j0))
+    do ii=-1,1
+      i=max(grd%isd,min(grd%ied,ii+i0))
+      B(ii,jj)=A(i,j)
+      if ((i.ne.ii+i0).or.(j.ne.jj+j0)) B(ii,jj)=-9.999999e-99
+    enddo
+  enddo
+  write(stderrunit,'("pe=",i3,x,a8,3i12)') mpp_pe(),lbl,(i0+ii,ii=-1,1)
+  do jj=1,-1,-1
+    write(stderrunit,'("pe=",i3,x,i8,3es12.4)') mpp_pe(),j0+jj,(B(ii,jj),ii=-1,1)
+  enddo
+  end subroutine dump_locfld
+  
+  subroutine dump_locvel(grd,i0,j0,A,lbl)
+  ! Arguments
+  type(icebergs_gridded), pointer :: grd
+  integer, intent(in) :: i0, j0
+  real, dimension(grd%isd:grd%ied,grd%jsd:grd%jed), intent(in) :: A
+  character(len=*) :: lbl
+! Local variables
+  integer :: i, j, ii, jj
+  real :: B(-1:0,-1:0), fac
+
+  do jj=-1,0
+    j=max(grd%jsd,min(grd%jed,jj+j0))
+    do ii=-1,0
+      i=max(grd%isd,min(grd%ied,ii+i0))
+      B(ii,jj)=A(i,j)
+      if ((i.ne.ii+i0).or.(j.ne.jj+j0)) B(ii,jj)=-9.999999e-99
+    enddo
+  enddo
+  write(stderrunit,'("pe=",i3,x,a8,3i12)') mpp_pe(),lbl,(i0+ii,ii=-1,0)
+  do jj=0,-1,-1
+    write(stderrunit,'("pe=",i3,x,i8,3es12.4)') mpp_pe(),j0+jj,(B(ii,jj),ii=-1,0)
+  enddo
+  end subroutine dump_locvel
   
 end subroutine accel
 
