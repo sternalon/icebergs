@@ -112,13 +112,15 @@ integer :: stdlogunit, stderrunit
 
 end subroutine icebergs_init
 
-subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, ax, ay, debug_flag)
+!subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, ax, ay, debug_flag)
+subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, ax, ay, axn, ayn, bxn, byn, Runge_not_Verlet, debug_flag) !Saving  acceleration for Verlet, Adding Verlet flag - Alon
 ! Arguments
 type(icebergs), pointer :: bergs
 type(iceberg), pointer :: berg
 integer, intent(in) :: i, j
 real, intent(in) :: xi, yj, lat, uvel, vvel, uvel0, vvel0, dt
 real, intent(inout) :: ax, ay
+real, optional, intent(inout) :: axn, ayn, bxn, byn ! Added implicit and explicit accelerations to output -Alon
 logical, optional :: debug_flag
 ! Local variables
 type(icebergs_gridded), pointer :: grd
@@ -129,6 +131,7 @@ real :: c_ocn, c_atm, c_ice
 real :: ampl, wmod, Cr, Lwavelength, Lcutoff, Ltop
 real, parameter :: alpha=0.0, beta=1.0, accel_lim=1.e-2, Cr0=0.06, vel_lim=15.
 real :: lambda, detA, A11, A12, axe, aye, D_hi
+logical, optional :: Runge_not_Verlet ! Flag to specify whether it is Runge-Kutta or Verlet
 real :: uveln, vveln, us, vs, speed, loc_dx, new_speed
 logical :: dumpit
 integer :: itloop
@@ -1594,11 +1597,13 @@ integer :: stderrunit
   uvel1=berg%uvel; vvel1=berg%vvel
   if (on_tangential_plane) call rotvec_to_tang(lon1,uvel1,vvel1,xdot1,ydot1)
   u1=uvel1*dxdl1; v1=vvel1*dydl
-  call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt_2, ax1, ay1)
-  if (on_tangential_plane) call rotvec_to_tang(lon1,ax1,ay1,xddot1,yddot1)
- 
+print *, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt_2, axn1, ayn1, Runge_not_Verlet
+  !call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt_2, ax1, ay1)
+  call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt, ax1, ay1, axn1, ayn1, bxn, byn, Runge_not_Verlet) !Note change to dt. Markpoint_1
 print *, ax1, ay1
 stop
+  if (on_tangential_plane) call rotvec_to_tang(lon1,ax1,ay1,xddot1,yddot1)
+ 
  
   !  X2 = X1+dt/2*V1 ; V2 = V1+dt/2*A1; A2=A(X2)
  !if (debug) write(stderr(),*) 'diamonds, evolve: x2=...'
