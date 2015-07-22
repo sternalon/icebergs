@@ -137,6 +137,12 @@ logical :: dumpit
 integer :: itloop
 integer :: stderrunit
 
+axn=0.
+ayn=0.
+bxn=0.
+byn=0.
+
+
   ! Get the stderr unit number.
   stderrunit = stderr()
 
