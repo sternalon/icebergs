@@ -1600,12 +1600,14 @@ integer :: stderrunit
   if (on_tangential_plane) call rotvec_to_tang(lon1,uvel1,vvel1,xdot1,ydot1)
   u1=uvel1*dxdl1; v1=vvel1*dydl
   !call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt_2, ax1, ay1, axn1, ayn1, bxn, byn, Runge_not_Verlet) !axn,ayn, bxn, byn ,Runge_not_Verlet  - Added by Alon
+
+print *,  i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt, ax1, ay1, axn1, ayn1, bxn, byn, Runge_not_Verlet
   call accel(bergs, berg, i, j, xi, yj, lat1, uvel1, vvel1, uvel1, vvel1, dt, ax1, ay1, axn1, ayn1, bxn, byn, Runge_not_Verlet) !Note change to dt. Markpoint_1
+print *, ax1, ay1, axn, ayn, bxn, byn
+stop
   if (on_tangential_plane) call rotvec_to_tang(lon1,ax1,ay1,xddot1,yddot1)
   if (on_tangential_plane) call rotvec_to_tang(lon1,axn1,ayn1,xddot1n,yddot1n) !Alon
  
-print *, ax1, ay1
-stop
  
   !  X2 = X1+dt/2*V1 ; V2 = V1+dt/2*A1; A2=A(X2)
  !if (debug) write(stderr(),*) 'diamonds, evolve: x2=...'
