@@ -1,0 +1,2 @@
+A new parametrization for iceberg decay due to iceberg breaking has been added. The default of this parametrization is off. When it is turned on, icebergs undergo decay proportional to M^4/3. There are two options for doing this. First, the iceberg depth is held constant, while the width and length vary at a fixed ratio. Second, the depth, width and length all change such that their ratios rema
+in fixed.
