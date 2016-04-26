@@ -728,6 +728,8 @@ real :: Mv, Me, Mb, melt, dvo, dva, dM, Ss, dMe, dMb, dMv
 real :: Mnew, Mnew1, Mnew2, Hocean
 real :: Mbits, nMbits, dMbitsE, dMbitsM, Lbits, Abits, Mbb
 real :: tip_parameter
+real :: gamma1, alpha1
+real :: dM_broken, C1
 integer :: i,j, stderrunit
 type(iceberg), pointer :: this, next
 real, parameter :: perday=1./86400.
@@ -799,6 +801,32 @@ real, parameter :: perday=1./86400.
       dMe=(M/Vol)*(T*(W+L))*Me*bergs%dt ! approx. mass lost to erosion (kg)
       dMv=(M/Vol)*(T*(W+L))*Mv*bergs%dt ! approx. mass loss to buoyant convection (kg)
     endif
+
+    if(bergs%Decay_via_breaking) then
+        if (Mnew .gt. 0.) then
+          !Note: breaking_param default is C1=[((Mass_scale)**(-1/3))/(Time_scale) *(1/V_scale)].The time scale is the iceberg lifetime (5 years), the mass_scale is the mass of Delta5 = 3.8e10kg
+          ! V_scale used to non-dimensionalized Me. As default, we use V_scale=((Mass_scale/rho)**1/3 /lifetime)
+          !Default comes to 2.e-5. This probably needs more thought.
+          C1=bergs%breaking_param*Me  !Note we have scaled this by Me, so that decay is proportional to the sea state
+          dM_broken= C1*( Mnew**(4./3.))*bergs%dt
+          nVol=max(((Mnew-dM_broken)/Mnew)*Vol,0.)
+          Mnew =max( Mnew-dM_broken,0.)
+          dM=M-Mnew
+          gamma1=Wn/Ln
+          alpha1=Tn/Ln
+          if(bergs%Breaking_with_fixed_depth) then  !Holding area aspect ratio fixed
+            Ln = sqrt(nVol/Tn)/sqrt(gamma1)
+            Wn = gamma1*Ln
+            Tn=Tn
+          else  !Holding full aspect ratio fixed
+            Ln = ((nVol/(gamma1*alpha1))**(1./3.))
+            Wn= gamma1*Ln
+            Tn = alpha1*Ln
+          endif
+        endif
+    endif
+
+
 
     ! Bergy bits
     if (bergs%bergy_bit_erosion_fraction>0.) then

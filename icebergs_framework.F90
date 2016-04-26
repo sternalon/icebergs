@@ -184,6 +184,9 @@ type :: icebergs !; private!Niki: Ask Alistair why this is private. ice_bergs_io
   logical :: time_average_weight=.false. ! Time average the weight on the ocean
   logical :: use_updated_rolling_scheme=.false. ! True to use the aspect ratio based rolling scheme rather than incorrect version of WM scheme   (set tip_parameter=1000. for correct WM scheme)
   logical :: Runge_not_Verlet=.True.  !True=Runge Kuttai, False=Verlet.  - Added by Alon 
+  logical :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
+  logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
+  logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
   logical :: use_new_predictive_corrective =.False.  !Flag to use Bob's predictive corrective iceberg scheme- Added by Alon 
   logical :: interactive_icebergs_on=.false.  !Turn on/off interactions between icebergs  - Added by Alon 
   logical :: critical_interaction_damping_on=.true.  !Sets the damping on relative iceberg velocity to critical value - Added by Alon 
@@ -283,6 +286,9 @@ real :: speed_limit=0. ! CFL speed limit for a berg
 real :: tip_parameter=0. ! parameter to override iceberg rollilng critica ratio (use zero to get parameter directly from ice and seawater densities
 real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
 logical :: Runge_not_Verlet=.True.  !True=Runge Kutta, False=Verlet.  - Added by Alon 
+logical :: breaking_param=2.e-10  !Coefficient for iceberg decay. 
+logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
+logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
 logical :: use_updated_rolling_scheme=.false. ! Use the corrected Rolling Scheme rather than the erronios one
 logical :: use_new_predictive_corrective =.False.  !Flag to use Bob's predictive corrective iceberg scheme- Added by Alon 
 logical :: interactive_icebergs_on=.false.  !Turn on/off interactions between icebergs  - Added by Alon 
@@ -293,10 +299,10 @@ real, dimension(nclasses) :: initial_mass=(/8.8e7, 4.1e8, 3.3e9, 1.8e10, 3.8e10,
 real, dimension(nclasses) :: distribution=(/0.24, 0.12, 0.15, 0.18, 0.12, 0.07, 0.03, 0.03, 0.03, 0.02/) ! Fraction of calving to apply to this class (non-dim) , 
 real, dimension(nclasses) :: mass_scaling=(/2000, 200, 50, 20, 10, 5, 2, 1, 1, 1/) ! Ratio between effective and real iceberg mass (non-dim)
 real, dimension(nclasses) :: initial_thickness=(/40., 67., 133., 175., 250., 250., 250., 250., 250., 250./) ! Total thickness of newly calved bergs (m)
-namelist /icebergs_nml/ verbose, budget, halo, traj_sample_hrs, initial_mass, traj_write_hrs, &
+namelist /icebergs_nml/ verbose, budget, halo, traj_sample_hrs, initial_mass, traj_write_hrs,breaking_param, &
          distribution, mass_scaling, initial_thickness, verbose_hrs, spring_coef, radial_damping_coef, tangental_damping_coef, &
-         rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, use_updated_rolling_scheme, &
-         parallel_reprod, use_slow_find, sicn_shift, add_weight_to_ocean, passive_mode, ignore_ij_restart, use_new_predictive_corrective, tip_parameter, &
+         rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, use_updated_rolling_scheme,Decay_via_breaking, &
+         parallel_reprod, use_slow_find, sicn_shift, add_weight_to_ocean, passive_mode, ignore_ij_restart, use_new_predictive_corrective, tip_parameter, Breaking_with_fixed_depth, &
          time_average_weight, generate_test_icebergs, speed_limit, fix_restart_dates, use_roundoff_fix, Runge_not_Verlet, interactive_icebergs_on, critical_interaction_damping_on, &
          old_bug_rotated_weights, make_calving_reproduce,restart_input_dir, orig_read, old_bug_bilin,do_unit_tests,grounding_fraction, input_freq_distribution, force_all_pes_traj
 
@@ -550,6 +556,9 @@ endif
   bergs%speed_limit=speed_limit
   bergs%tip_parameter=tip_parameter
   bergs%Runge_not_Verlet=Runge_not_Verlet   !Alon
+  bergs%breaking_param=breaking_param
+  bergs%Breaking_with_fixed_depth=Breaking_with_fixed_depth   !Alon
+  bergs%Decay_via_breaking=Decay_via_breaking   !Alon
   bergs%use_updated_rolling_scheme=use_updated_rolling_scheme  !Alon
   bergs%critical_interaction_damping_on=critical_interaction_damping_on   !Alon
   bergs%interactive_icebergs_on=interactive_icebergs_on   !Alon
