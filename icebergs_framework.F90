@@ -285,7 +285,7 @@ logical :: time_average_weight=.false. ! Time average the weight on the ocean
 real :: speed_limit=0. ! CFL speed limit for a berg
 real :: tip_parameter=0. ! parameter to override iceberg rollilng critica ratio (use zero to get parameter directly from ice and seawater densities
 real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
-real :: breaking_param=2.e-10  !Coefficient for iceberg decay. 
+real :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
 logical :: Runge_not_Verlet=.True.  !True=Runge Kutta, False=Verlet.  - Added by Alon 
 logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
 logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
