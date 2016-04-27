@@ -184,12 +184,12 @@ type :: icebergs !; private!Niki: Ask Alistair why this is private. ice_bergs_io
   logical :: time_average_weight=.false. ! Time average the weight on the ocean
   logical :: use_updated_rolling_scheme=.false. ! True to use the aspect ratio based rolling scheme rather than incorrect version of WM scheme   (set tip_parameter=1000. for correct WM scheme)
   logical :: Runge_not_Verlet=.True.  !True=Runge Kuttai, False=Verlet.  - Added by Alon 
-  logical :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
   logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
   logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
   logical :: use_new_predictive_corrective =.False.  !Flag to use Bob's predictive corrective iceberg scheme- Added by Alon 
   logical :: interactive_icebergs_on=.false.  !Turn on/off interactions between icebergs  - Added by Alon 
   logical :: critical_interaction_damping_on=.true.  !Sets the damping on relative iceberg velocity to critical value - Added by Alon 
+  real :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
   real :: speed_limit=0. ! CFL speed limit for a berg [m/s]
   real :: tip_parameter=0. ! parameter to override iceberg rollilng critica ratio (use zero to get parameter directly from ice and seawater densities) 
   real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
@@ -285,8 +285,8 @@ logical :: time_average_weight=.false. ! Time average the weight on the ocean
 real :: speed_limit=0. ! CFL speed limit for a berg
 real :: tip_parameter=0. ! parameter to override iceberg rollilng critica ratio (use zero to get parameter directly from ice and seawater densities
 real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
+real :: breaking_param=2.e-10  !Coefficient for iceberg decay. 
 logical :: Runge_not_Verlet=.True.  !True=Runge Kutta, False=Verlet.  - Added by Alon 
-logical :: breaking_param=2.e-10  !Coefficient for iceberg decay. 
 logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
 logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
 logical :: use_updated_rolling_scheme=.false. ! Use the corrected Rolling Scheme rather than the erronios one
