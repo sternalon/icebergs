@@ -186,6 +186,7 @@ type :: icebergs !; private!Niki: Ask Alistair why this is private. ice_bergs_io
   logical :: Runge_not_Verlet=.True.  !True=Runge Kuttai, False=Verlet.  - Added by Alon 
   logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
   logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
+  logical :: use_decay_proportional_to_surface_area=.True.  !Regular Thermodynamics, decay proportional to surface area  (can turn off to test -4/3 parametrization)
   logical :: use_new_predictive_corrective =.False.  !Flag to use Bob's predictive corrective iceberg scheme- Added by Alon 
   logical :: interactive_icebergs_on=.false.  !Turn on/off interactions between icebergs  - Added by Alon 
   logical :: critical_interaction_damping_on=.true.  !Sets the damping on relative iceberg velocity to critical value - Added by Alon 
@@ -288,6 +289,7 @@ real :: grounding_fraction=0. ! Fraction of water column depth at which groundin
 real :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
 logical :: Runge_not_Verlet=.True.  !True=Runge Kutta, False=Verlet.  - Added by Alon 
 logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
+logical :: use_decay_proportional_to_surface_area=.True.  !Regular Thermodynamics, decay proportional to surface area  (can turn off to test -4/3 parametrization)
 logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
 logical :: use_updated_rolling_scheme=.false. ! Use the corrected Rolling Scheme rather than the erronios one
 logical :: use_new_predictive_corrective =.False.  !Flag to use Bob's predictive corrective iceberg scheme- Added by Alon 
@@ -301,7 +303,7 @@ real, dimension(nclasses) :: mass_scaling=(/2000, 200, 50, 20, 10, 5, 2, 1, 1, 1
 real, dimension(nclasses) :: initial_thickness=(/40., 67., 133., 175., 250., 250., 250., 250., 250., 250./) ! Total thickness of newly calved bergs (m)
 namelist /icebergs_nml/ verbose, budget, halo, traj_sample_hrs, initial_mass, traj_write_hrs,breaking_param, &
          distribution, mass_scaling, initial_thickness, verbose_hrs, spring_coef, radial_damping_coef, tangental_damping_coef, &
-         rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, use_updated_rolling_scheme,Decay_via_breaking, &
+         rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, use_updated_rolling_scheme,Decay_via_breaking,use_decay_proportional_to_surface_area, &
          parallel_reprod, use_slow_find, sicn_shift, add_weight_to_ocean, passive_mode, ignore_ij_restart, use_new_predictive_corrective, tip_parameter, Breaking_with_fixed_depth, &
          time_average_weight, generate_test_icebergs, speed_limit, fix_restart_dates, use_roundoff_fix, Runge_not_Verlet, interactive_icebergs_on, critical_interaction_damping_on, &
          old_bug_rotated_weights, make_calving_reproduce,restart_input_dir, orig_read, old_bug_bilin,do_unit_tests,grounding_fraction, input_freq_distribution, force_all_pes_traj
@@ -558,6 +560,7 @@ endif
   bergs%Runge_not_Verlet=Runge_not_Verlet   !Alon
   bergs%breaking_param=breaking_param
   bergs%Breaking_with_fixed_depth=Breaking_with_fixed_depth   !Alon
+  bergs%use_decay_proportional_to_surface_area=use_decay_proportional_to_surface_area
   bergs%Decay_via_breaking=Decay_via_breaking   !Alon
   bergs%use_updated_rolling_scheme=use_updated_rolling_scheme  !Alon
   bergs%critical_interaction_damping_on=critical_interaction_damping_on   !Alon

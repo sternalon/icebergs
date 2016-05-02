@@ -769,38 +769,46 @@ real, parameter :: perday=1./86400.
     Me=max( 1./12.*(SST+2.)*Ss*(1+cos(pi*(IC**3))) ,0.) &! Wave erosion
         *perday ! convert to m/s
 
-    if (bergs%use_operator_splitting) then
-      ! Operator split update of volume/mass
-      Tn=max(T-Mb*bergs%dt,0.) ! new total thickness (m)
-      nVol=Tn*W*L ! new volume (m^3)
-      Mnew1=(nVol/Vol)*M ! new mass (kg)
-      dMb=M-Mnew1 ! mass lost to basal melting (>0) (kg)
+    if (bergs%use_decay_proportional_to_surface_area) then
+      if (bergs%use_operator_splitting) then
+        ! Operator split update of volume/mass
+        Tn=max(T-Mb*bergs%dt,0.) ! new total thickness (m)
+        nVol=Tn*W*L ! new volume (m^3)
+        Mnew1=(nVol/Vol)*M ! new mass (kg)
+        dMb=M-Mnew1 ! mass lost to basal melting (>0) (kg)
 
-      Ln=max(L-Mv*bergs%dt,0.) ! new length (m)
-      Wn=max(W-Mv*bergs%dt,0.) ! new width (m)
-      nVol=Tn*Wn*Ln ! new volume (m^3)
-      Mnew2=(nVol/Vol)*M ! new mass (kg)
-      dMv=Mnew1-Mnew2 ! mass lost to buoyant convection (>0) (kg)
+        Ln=max(L-Mv*bergs%dt,0.) ! new length (m)
+        Wn=max(W-Mv*bergs%dt,0.) ! new width (m)
+        nVol=Tn*Wn*Ln ! new volume (m^3)
+        Mnew2=(nVol/Vol)*M ! new mass (kg)
+        dMv=Mnew1-Mnew2 ! mass lost to buoyant convection (>0) (kg)
 
-      Ln=max(Ln-Me*bergs%dt,0.) ! new length (m)
-      Wn=max(Wn-Me*bergs%dt,0.) ! new width (m)
-      nVol=Tn*Wn*Ln ! new volume (m^3)
-      Mnew=(nVol/Vol)*M ! new mass (kg)
-      dMe=Mnew2-Mnew ! mass lost to erosion (>0) (kg)
-      dM=M-Mnew ! mass lost to all erosion and melting (>0) (kg)
-    else
-      ! Update dimensions of berg
-      Ln=max(L-(Mv+Me)*(bergs%dt),0.) ! (m)
-      Wn=max(W-(Mv+Me)*(bergs%dt),0.) ! (m)
-      Tn=max(T-Mb*(bergs%dt),0.) ! (m)
-      ! Update volume and mass of berg
-      nVol=Tn*Wn*Ln ! (m^3)
-      Mnew=(nVol/Vol)*M ! (kg)
-      dM=M-Mnew ! (kg)
-      dMb=(M/Vol)*(W*L)*Mb*bergs%dt ! approx. mass loss to basal melting (kg)
-      dMe=(M/Vol)*(T*(W+L))*Me*bergs%dt ! approx. mass lost to erosion (kg)
-      dMv=(M/Vol)*(T*(W+L))*Mv*bergs%dt ! approx. mass loss to buoyant convection (kg)
+        Ln=max(Ln-Me*bergs%dt,0.) ! new length (m)
+        Wn=max(Wn-Me*bergs%dt,0.) ! new width (m)
+        nVol=Tn*Wn*Ln ! new volume (m^3)
+        Mnew=(nVol/Vol)*M ! new mass (kg)
+        dMe=Mnew2-Mnew ! mass lost to erosion (>0) (kg)
+        dM=M-Mnew ! mass lost to all erosion and melting (>0) (kg)
+      else
+        ! Update dimensions of berg
+        Ln=max(L-(Mv+Me)*(bergs%dt),0.) ! (m)
+        Wn=max(W-(Mv+Me)*(bergs%dt),0.) ! (m)
+        Tn=max(T-Mb*(bergs%dt),0.) ! (m)
+        ! Update volume and mass of berg
+        nVol=Tn*Wn*Ln ! (m^3)
+        Mnew=(nVol/Vol)*M ! (kg)
+        dM=M-Mnew ! (kg)
+        dMb=(M/Vol)*(W*L)*Mb*bergs%dt ! approx. mass loss to basal melting (kg)
+        dMe=(M/Vol)*(T*(W+L))*Me*bergs%dt ! approx. mass lost to erosion (kg)
+        dMv=(M/Vol)*(T*(W+L))*Mv*bergs%dt ! approx. mass loss to buoyant convection (kg)
     endif
+  else
+    Mnew=M
+    dM=0.  
+    dMe=0. 
+    dMb=0.
+    dMv=0.
+  endif
 
     if(bergs%Decay_via_breaking) then
         if (Mnew .gt. 0.) then
