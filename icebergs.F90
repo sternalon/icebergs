@@ -730,6 +730,7 @@ real :: Mbits, nMbits, dMbitsE, dMbitsM, Lbits, Abits, Mbb
 real :: tip_parameter
 real :: gamma1, alpha1
 real :: dM_broken, C1
+real :: L_old
 integer :: i,j, stderrunit
 type(iceberg), pointer :: this, next
 real, parameter :: perday=1./86400.
@@ -817,11 +818,12 @@ real, parameter :: perday=1./86400.
           !Default comes to 2.e-5. This probably needs more thought.
           C1=bergs%breaking_param*Me  !Note we have scaled this by Me, so that decay is proportional to the sea state
           dM_broken= C1*( Mnew**(4./3.))*bergs%dt
-          nVol=max(((Mnew-dM_broken)/Mnew)*Vol,0.)
+          nVol=max(((Mnew-dM_broken)/Mnew)*nVol,0.)
           Mnew =max( Mnew-dM_broken,0.)
           dM=M-Mnew
           gamma1=Wn/Ln
           alpha1=Tn/Ln
+          L_old=Ln
           if(bergs%Breaking_with_fixed_depth) then  !Holding area aspect ratio fixed
             Ln = sqrt(nVol/Tn)/sqrt(gamma1)
             Wn = gamma1*Ln
@@ -830,6 +832,9 @@ real, parameter :: perday=1./86400.
             Ln = ((nVol/(gamma1*alpha1))**(1./3.))
             Wn= gamma1*Ln
             Tn = alpha1*Ln
+          endif
+          if (Ln>(L_old+1.e-7)) then
+            call error_mesg('diamonds, thermodynamics', 'Berg length is growing!', FATAL)
           endif
         endif
     endif
