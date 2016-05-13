@@ -805,6 +805,9 @@ real, parameter :: perday=1./86400.
     endif
   else
     Mnew=M
+    Tn=T
+    Ln=L
+    Wn=W
     dM=0.  
     dMe=0. 
     dMb=0.
