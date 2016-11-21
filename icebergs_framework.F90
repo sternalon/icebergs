@@ -184,6 +184,7 @@ type :: icebergs !; private!Niki: Ask Alistair why this is private. ice_bergs_io
   logical :: time_average_weight=.false. ! Time average the weight on the ocean
   logical :: use_updated_rolling_scheme=.false. ! True to use the aspect ratio based rolling scheme rather than incorrect version of WM scheme   (set tip_parameter=1000. for correct WM scheme)
   logical :: Runge_not_Verlet=.True.  !True=Runge Kuttai, False=Verlet.  - Added by Alon 
+  logical :: allow_bergs_to_roll=.True. !Allows icebergs to roll over when rolling conditions are met
   logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
   logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
   logical :: use_decay_proportional_to_surface_area=.True.  !Regular Thermodynamics, decay proportional to surface area  (can turn off to test -4/3 parametrization)
@@ -288,6 +289,7 @@ real :: tip_parameter=0. ! parameter to override iceberg rollilng critica ratio 
 real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
 real :: breaking_param=2.e-5  !Coefficient for iceberg decay. 
 logical :: Runge_not_Verlet=.True.  !True=Runge Kutta, False=Verlet.  - Added by Alon 
+logical :: allow_bergs_to_roll=.True. !Allows icebergs to roll over when rolling conditions are met
 logical :: Breaking_with_fixed_depth=.True.  !When Decay_via_breaking is used, this flag holds Tn fixed. False holds the full aspect ratio fixed.
 logical :: use_decay_proportional_to_surface_area=.True.  !Regular Thermodynamics, decay proportional to surface area  (can turn off to test -4/3 parametrization)
 logical :: Decay_via_breaking=.False.  !True=Use breaking 4/3 decay rate 
@@ -306,7 +308,8 @@ namelist /icebergs_nml/ verbose, budget, halo, traj_sample_hrs, initial_mass, tr
          rho_bergs, LoW_ratio, debug, really_debug, use_operator_splitting, bergy_bit_erosion_fraction, use_updated_rolling_scheme,Decay_via_breaking,use_decay_proportional_to_surface_area, &
          parallel_reprod, use_slow_find, sicn_shift, add_weight_to_ocean, passive_mode, ignore_ij_restart, use_new_predictive_corrective, tip_parameter, Breaking_with_fixed_depth, &
          time_average_weight, generate_test_icebergs, speed_limit, fix_restart_dates, use_roundoff_fix, Runge_not_Verlet, interactive_icebergs_on, critical_interaction_damping_on, &
-         old_bug_rotated_weights, make_calving_reproduce,restart_input_dir, orig_read, old_bug_bilin,do_unit_tests,grounding_fraction, input_freq_distribution, force_all_pes_traj
+         old_bug_rotated_weights, make_calving_reproduce,restart_input_dir, orig_read, old_bug_bilin,do_unit_tests,grounding_fraction, input_freq_distribution, force_all_pes_traj, &
+         allow_bergs_to_roll
 
 ! Local variables
 integer :: ierr, iunit, i, j, id_class, axes3d(3), is,ie,js,je,np
@@ -558,6 +561,7 @@ endif
   bergs%speed_limit=speed_limit
   bergs%tip_parameter=tip_parameter
   bergs%Runge_not_Verlet=Runge_not_Verlet   !Alon
+  bergs%allow_bergs_to_roll=allow_bergs_to_roll   !Alon
   bergs%breaking_param=breaking_param
   bergs%Breaking_with_fixed_depth=Breaking_with_fixed_depth   !Alon
   bergs%use_decay_proportional_to_surface_area=use_decay_proportional_to_surface_area
