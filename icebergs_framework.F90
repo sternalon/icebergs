@@ -3609,11 +3609,19 @@ real :: Lx, dx,dy
   !This part only works for a regular cartesian grid. For more complex grids, we
   !should use calc_xiyj
   if ((.not. grd%grid_is_latlon) .and. (grd%grid_is_regular))  then
+    !Applying periodic boundary condition
+    xx=x
+    if ((x>Lx) .and. (x1<Lx/2)) then
+      xx=x-Lx
+    elseif ((x<0) .and. (x1>Lx/2)) then
+      xx=x+Lx
+    endif
+
     dx=abs((grd%lon(i  ,j  )-grd%lon(i-1  ,j  )))
     dy=abs((grd%lat(i  ,j  )-grd%lat(i  ,j-1  )))
     x1=grd%lon(i  ,j  )-(dx/2)
     y1=grd%lat(i  ,j  )-(dy/2)
-    xi=((x-x1)/dx)+0.5
+    xi=((xx-x1)/dx)+0.5
     yj=((y-y1)/dy)+0.5
 
   elseif ((max(y1,y2,y3,y4)<89.999) .or.(.not. grd%grid_is_latlon)) then
