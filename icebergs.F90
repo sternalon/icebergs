@@ -715,6 +715,8 @@ subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, a
   logical :: use_new_predictive_corrective !Flad to use Bob's predictive corrective scheme. (default off)
   integer :: itloop
   integer :: stderrunit
+  real :: dragfrac, N_bonds, N_max
+  type(bond), pointer :: current_bond
 
   Runge_not_Verlet=bergs%Runge_not_Verlet  ! Loading directly from namelist/default , Alon
   interactive_icebergs_on=bergs%interactive_icebergs_on  ! Loading directly from namelist/default , Alon
@@ -790,13 +792,28 @@ subroutine accel(bergs, berg, i, j, xi, yj, lat, uvel, vvel, uvel0, vvel0, dt, a
     uwave=0.; vwave=0.; wave_rad=0. ! ... and only when wind is present.
   endif
 
+
+  dragfrac = 1.0
+  if ((bergs%iceberg_bonds_on) .and. (bergs%internal_bergs_for_drag)) then
+    N_bonds=0.
+    N_max=4.0  !Maximum number of bonds that element can form based on shape
+    if (bergs%hexagonal_icebergs) N_max=6.0
+    ! Determining number of bonds
+    current_bond=>berg%first_bond
+    do while (associated(current_bond)) ! loop over all bonds
+      N_bonds=N_bonds+1.0
+      current_bond=>current_bond%next_bond
+    enddo
+    dragfrac = ((N_max-N_bonds)/N_max)
+  endif
+
   ! Weighted drag coefficients
-  c_ocn=rho_seawater/M*(0.5*Cd_wv*W*(D_hi)+Cd_wh*W*L)
-  c_atm=rho_air     /M*(0.5*Cd_av*W*F     +Cd_ah*W*L)
+  c_ocn=rho_seawater/M*(0.5*Cd_wv*dragfrac*W*(D_hi)+Cd_wh*W*L)
+  c_atm=rho_air     /M*(0.5*Cd_av*dragfrac*W*F     +Cd_ah*W*L)
   if (abs(hi).eq.0.) then
     c_ice=0.
   else
-    c_ice=rho_ice     /M*(0.5*Cd_iv*W*hi              )
+    c_ice=rho_ice     /M*(0.5*Cd_iv*dragfrac*W*hi              )
   endif
   if (abs(ui)+abs(vi).eq.0.) c_ice=0.
 
@@ -1178,6 +1195,7 @@ subroutine thermodynamics(bergs)
   real, parameter :: perday=1./86400.
   integer :: grdi, grdj
   real :: SSS !Temporarily here
+  logical :: allow_berg_to_roll
 
   ! For convenience
   grd=>bergs%grd
@@ -1358,7 +1376,15 @@ subroutine thermodynamics(bergs)
       !1) Rolling based on aspect ratio threshold (iceberg of constant density)
       !2) Rolling based on corrected Weeks and Mellor scheme
       !3) Rolling based on incorrect Weeks and Mellor scheme - kept for legacy reasons
-      if (bergs%allow_bergs_to_roll) then
+
+      !Prevent bonded icebergs from Rolling
+      allow_berg_to_roll=bergs%allow_bergs_to_roll
+      if (bergs%iceberg_bonds_on) then
+        if (associated(this%first_bond)) allow_berg_to_roll=.False.
+      endif
+
+
+      if (allow_berg_to_roll) then
         Dn=(bergs%rho_bergs/rho_seawater)*Tn ! draught (keel depth)
         if ( Dn>0. ) then
           if ( (.not.bergs%use_updated_rolling_scheme) .and. (bergs%tip_parameter<999.) ) then    !Use Rolling Scheme 3
