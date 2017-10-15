@@ -341,6 +341,7 @@ type :: icebergs !; private !Niki: Ask Alistair why this is private. ice_bergs_i
   logical :: time_average_weight=.false. !< Time average the weight on the ocean
   logical :: Runge_not_Verlet=.True. !< True=Runge-Kutta, False=Verlet.
   logical :: set_ustar_to_zero=.False. !< If true, then friction velocity felt by ocean is set to zero.
+  logical :: set_mom_flux_to_zero=.False. !< If true, then momentum flux felt by ocean is set to zero.
   logical :: internal_bergs_for_drag=.False. !< True=reduces side drag for bonded elements in momentum equation.
   logical :: use_mixed_melting=.False. !< If true, then the melt is determined partly using 3 eq model partly using iceberg parameterizations (according to iceberg bond number)
   logical :: apply_thickness_cutoff_to_gridded_melt=.False. !< Prevents melt for ocean thickness below melt_cuttoff (applied to gridded melt fields)
@@ -511,6 +512,7 @@ real :: tip_parameter=0. ! Parameter to override iceberg rolling critical ratio 
 real :: grounding_fraction=0. ! Fraction of water column depth at which grounding occurs
 logical :: Runge_not_Verlet=.True. ! True=Runge Kutta, False=Verlet.
 logical :: set_ustar_to_zero=.False. !< If true, then friction velocity felt by ocean is set to zero.
+logical :: set_mom_flux_to_zero=.False. !< If true, then momentum flux felt by ocean is set to zero.
 logical :: internal_bergs_for_drag=.False. !< True=reduces side drag for bonded elements in momentum equation.
 logical :: use_mixed_melting=.False. ! If true, then the melt is determined partly using 3 eq model partly using iceberg parameterizations (according to iceberg bond number)
 logical :: apply_thickness_cutoff_to_gridded_melt=.False. ! Prevents melt for ocean thickness below melt_cuttoff (applied to gridded melt fields)
@@ -563,7 +565,7 @@ namelist /icebergs_nml/ verbose, budget, halo,  traj_sample_hrs, initial_mass, t
          grid_is_regular,override_iceberg_velocities,u_override,v_override,add_iceberg_thickness_to_SSH,Iceberg_melt_without_decay,melt_icebergs_as_ice_shelf, &
          Use_three_equation_model,find_melt_using_spread_mass,use_mixed_layer_salinity_for_thermo,utide_icebergs,ustar_icebergs_bg,cdrag_icebergs, pass_fields_to_ocean_model, &
          const_gamma, Gamma_T_3EQ, ignore_traj, debug_iceberg_with_id,use_updated_rolling_scheme, tip_parameter, read_old_restarts, tau_calving, read_ocean_depth_from_file, melt_cutoff,&
-         apply_thickness_cutoff_to_gridded_melt, apply_thickness_cutoff_to_bergs_melt,use_mixed_melting, internal_bergs_for_drag, set_ustar_to_zero
+         apply_thickness_cutoff_to_gridded_melt, apply_thickness_cutoff_to_bergs_melt,use_mixed_melting, internal_bergs_for_drag, set_ustar_to_zero, set_mom_flux_to_zero
 
 
 ! Local variables
@@ -944,6 +946,7 @@ if (ignore_traj) buffer_width_traj=0 ! If this is true, then all traj files shou
   bergs%use_updated_rolling_scheme=use_updated_rolling_scheme  !Alon
   bergs%Runge_not_Verlet=Runge_not_Verlet
   bergs%set_ustar_to_zero=set_ustar_to_zero
+  bergs%set_mom_flux_to_zero=set_mom_flux_to_zero
   bergs%internal_bergs_for_drag=internal_bergs_for_drag
   bergs%use_mixed_melting=use_mixed_melting
   bergs%apply_thickness_cutoff_to_bergs_melt=apply_thickness_cutoff_to_bergs_melt

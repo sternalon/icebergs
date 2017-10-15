@@ -2994,7 +2994,7 @@ end subroutine calculate_sum_over_bergs_diagnositcs
 
 !> The main driver the steps updates icebergs
 subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh, sst, calving_hflx, cn, hi, &
-                        stagger, stress_stagger, sss, mass_berg, ustar_berg, area_berg)
+                        stagger, stress_stagger, sss, mass_berg, ustar_berg, area_berg, u_berg,v_berg)
   ! Arguments
   type(icebergs), pointer :: bergs !< Container for all types and memory
   type(time_type), intent(in) :: time !< Model time
@@ -3015,6 +3015,8 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
   real, dimension(:,:), optional, intent(in) :: sss !< Sea-surface salinity (1e-3)
   real, dimension(:,:), optional, pointer :: mass_berg !< Mass of bergs (kg)
   real, dimension(:,:), optional, pointer :: ustar_berg !< Friction velocity on base of bergs (m/s)
+  real, dimension(:,:), optional, pointer :: v_berg !< Friction velocity on base of bergs (m/s)
+  real, dimension(:,:), optional, pointer :: u_berg !< Friction velocity on base of bergs (m/s)
   real, dimension(:,:), optional, pointer :: area_berg !< Area of bergs (m2)
   ! Local variables
   integer :: iyr, imon, iday, ihr, imin, isec, k
@@ -3070,6 +3072,12 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
   endif ;  endif
   if (present(ustar_berg)) then ; if (associated(ustar_berg)) then
     ustar_berg(:,:)=0.0
+  endif ;  endif
+  if (present(u_berg)) then ; if (associated(u_berg)) then
+    u_berg(:,:)=0.0
+  endif ;  endif
+  if (present(v_berg)) then ; if (associated(v_berg)) then
+    v_berg(:,:)=0.0
   endif ;  endif
   if (present(area_berg)) then ;  if (associated(area_berg)) then
     area_berg(:,:)=0.0
@@ -3492,6 +3500,22 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
         ustar_berg(:,:)=grd%ustar_iceberg(grd%isc:grd%iec,grd%jsc:grd%jec)
         if (bergs%set_ustar_to_zero) then
           ustar_berg(:,:)=0.0
+        endif
+      endif
+    endif
+    if (present(u_berg)) then
+      if (associated(u_berg)) then
+        u_berg(:,:)=grd%spread_uvel(grd%isc:grd%iec,grd%jsc:grd%jec)
+        if (bergs%set_mom_flux_to_zero) then
+          u_berg(:,:)=0.0
+        endif
+      endif
+    endif
+    if (present(v_berg)) then
+      if (associated(v_berg)) then
+        v_berg(:,:)=grd%spread_vvel(grd%isc:grd%iec,grd%jsc:grd%jec)
+        if (bergs%set_mom_flux_to_zero) then
+          v_berg(:,:)=0.0
         endif
       endif
     endif
