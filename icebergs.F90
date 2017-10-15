@@ -1263,7 +1263,7 @@ subroutine thermodynamics(bergs)
               current_bond=>current_bond%next_bond
             enddo
           endif
-          if  (this%static_berg .eq. 1)  N_bonds=N_max  !Static icebergs melt  like ice shelves
+          if  ( (this%static_berg .eq. 1) .or. (bergs%Static_icebergs) )  N_bonds=N_max  !Static icebergs melt  like ice shelves
           Me=((N_max-N_bonds)/N_max)*(Mv+Me)
           Mv=0.0
           Mb=(((N_max-N_bonds)/N_max)*(Mb)) + (N_bonds/N_max)*Ms
@@ -3490,6 +3490,9 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
     if (present(ustar_berg)) then
       if (associated(ustar_berg)) then
         ustar_berg(:,:)=grd%ustar_iceberg(grd%isc:grd%iec,grd%jsc:grd%jec)
+        if (bergs%set_ustar_to_zero) then
+          ustar_berg(:,:)=0.0
+        endif
       endif
     endif
     if (present(area_berg)) then
