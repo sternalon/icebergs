@@ -3514,9 +3514,8 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
           str_x_berg(:,:)=0.0
           str_y_berg(:,:)=0.0
         else
-          !call calculate_stress_on_ocn(grd, grd%spread_uvel - uo, grd%spread_vvel- vo , str_x_berg, str_y_berg)
-          call calculate_stress_on_ocn(grd, (grd%spread_uvel(grd%isc:grd%iec,grd%jsc:grd%jec) -uo(grd%isc:grd%iec,grd%jsc:grd%jec)),&
-          (grd%spread_vvel(grd%isc:grd%iec,grd%jsc:grd%jec) -vo(grd%isc:grd%iec,grd%jsc:grd%jec)) , str_x_berg, str_y_berg)
+          call calculate_stress_on_ocn(grd, grd%spread_uvel(grd%isc:grd%iec,grd%jsc:grd%jec) - grd%uo(grd%isc:grd%iec,grd%jsc:grd%jec),&
+                  grd%spread_vvel(grd%isc:grd%iec,grd%jsc:grd%jec) - grd%vo(grd%isc:grd%iec,grd%jsc:grd%jec), str_x_berg, str_y_berg)
         endif
       endif
     endif
