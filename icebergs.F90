@@ -2994,7 +2994,7 @@ end subroutine calculate_sum_over_bergs_diagnositcs
 
 !> The main driver the steps updates icebergs
 subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh, sst, calving_hflx, cn, hi, &
-                        stagger, stress_stagger, sss, mass_berg, ustar_berg, area_berg, u_berg,v_berg)
+                        stagger, stress_stagger, sss, mass_berg, ustar_berg, area_berg, str_x_berg,str_y_berg)
   ! Arguments
   type(icebergs), pointer :: bergs !< Container for all types and memory
   type(time_type), intent(in) :: time !< Model time
@@ -3015,8 +3015,8 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
   real, dimension(:,:), optional, intent(in) :: sss !< Sea-surface salinity (1e-3)
   real, dimension(:,:), optional, pointer :: mass_berg !< Mass of bergs (kg)
   real, dimension(:,:), optional, pointer :: ustar_berg !< Friction velocity on base of bergs (m/s)
-  real, dimension(:,:), optional, pointer :: v_berg !< Friction velocity on base of bergs (m/s)
-  real, dimension(:,:), optional, pointer :: u_berg !< Friction velocity on base of bergs (m/s)
+  real, dimension(:,:), optional, pointer :: str_y_berg !< Stress applied by berg on ocean (y-direction) (Pa)
+  real, dimension(:,:), optional, pointer :: str_x_berg !< Stress applied by berg on ocean (x-direction) (Pa)
   real, dimension(:,:), optional, pointer :: area_berg !< Area of bergs (m2)
   ! Local variables
   integer :: iyr, imon, iday, ihr, imin, isec, k
@@ -3073,11 +3073,11 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
   if (present(ustar_berg)) then ; if (associated(ustar_berg)) then
     ustar_berg(:,:)=0.0
   endif ;  endif
-  if (present(u_berg)) then ; if (associated(u_berg)) then
-    u_berg(:,:)=0.0
+  if (present(str_x_berg)) then ; if (associated(str_x_berg)) then
+    str_x_berg(:,:)=0.0
   endif ;  endif
-  if (present(v_berg)) then ; if (associated(v_berg)) then
-    v_berg(:,:)=0.0
+  if (present(str_y_berg)) then ; if (associated(str_y_berg)) then
+    str_y_berg(:,:)=0.0
   endif ;  endif
   if (present(area_berg)) then ;  if (associated(area_berg)) then
     area_berg(:,:)=0.0
@@ -3503,25 +3503,21 @@ subroutine icebergs_run(bergs, time, calving, uo, vo, ui, vi, tauxa, tauya, ssh,
         endif
       endif
     endif
-    if (present(u_berg)) then
-      if (associated(u_berg)) then
-        u_berg(:,:)=grd%spread_uvel(grd%isc:grd%iec,grd%jsc:grd%jec)
-        if (bergs%set_mom_flux_to_zero) then
-          u_berg(:,:)=0.0
-        endif
-      endif
-    endif
-    if (present(v_berg)) then
-      if (associated(v_berg)) then
-        v_berg(:,:)=grd%spread_vvel(grd%isc:grd%iec,grd%jsc:grd%jec)
-        if (bergs%set_mom_flux_to_zero) then
-          v_berg(:,:)=0.0
-        endif
-      endif
-    endif
     if (present(area_berg)) then
       if (associated(area_berg)) then
         area_berg(:,:)=grd%spread_area(grd%isc:grd%iec,grd%jsc:grd%jec)
+      endif
+    endif
+    if (present(str_x_berg) .and. present(str_y_berg)) then
+      if (associated(str_x_berg) .and. associated(str_y_berg)) then
+        if (bergs%set_mom_flux_to_zero) then
+          str_x_berg(:,:)=0.0
+          str_y_berg(:,:)=0.0
+        else
+          !call calculate_stress_on_ocn(grd, grd%spread_uvel - uo, grd%spread_vvel- vo , str_x_berg, str_y_berg)
+          call calculate_stress_on_ocn(grd, (grd%spread_uvel(grd%isc:grd%iec,grd%jsc:grd%jec) -uo(grd%isc:grd%iec,grd%jsc:grd%jec)),&
+          (grd%spread_vvel(grd%isc:grd%iec,grd%jsc:grd%jec) -vo(grd%isc:grd%iec,grd%jsc:grd%jec)) , str_x_berg, str_y_berg)
+        endif
       endif
     endif
   endif
@@ -5307,5 +5303,25 @@ subroutine invert_tau_for_du(u, v)
   enddo
 
 end subroutine invert_tau_for_du
+
+
+!> Convert a iceberg / ocean velocity difference into a stress on ocean
+subroutine calculate_stress_on_ocn(grd, u, v, str_x_berg, str_y_berg)
+  ! Arguments
+  type(icebergs_gridded), pointer :: grd
+  real, dimension(:,:), intent(in) :: u !<  zonal velocity difference (m/s), (iceberg - ocean).
+  real, dimension(:,:), intent(in) :: v !<  meridional velocity difference (m/s), (iceberg - ocean).
+  real, dimension(:,:), intent(inout) :: str_x_berg !< Stress that the iceberg applies to the ocean in x-direction (Pa).
+  real, dimension(:,:), intent(inout) :: str_y_berg !< Stress that the iceberg applies to the ocean in y-direction (Pa).
+  ! Local variables
+  integer :: i, j
+  real :: cd ! Drag Coefitient.
+  real :: cddvmod ! Used in iceberg stress calculation.
+  cd=0.0015 
+  str_x_berg(:,:)=cd*sqrt(u(:,:)*u(:,:) + v(:,:)*v(:,:))*u(:,:)
+  str_y_berg(:,:)=cd*sqrt(u(:,:)*u(:,:) + v(:,:)*v(:,:))*v(:,:)
+end subroutine calculate_stress_on_ocn
+
+
 
 end module
